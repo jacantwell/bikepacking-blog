@@ -6,6 +6,9 @@
     "start": "next start"
   },
   "dependencies": {
+    "@nestjs/axios": "^4.0.0",
+    "@nestjs/common": "^11.0.20",
+    "axios": "^1.8.4",
     "classnames": "^2.5.1",
     "date-fns": "^3.6.0",
     "gray-matter": "^4.0.3",
@@ -13,7 +16,8 @@
     "react": "19.0.0-rc-02c0e824-20241028",
     "react-dom": "19.0.0-rc-02c0e824-20241028",
     "remark": "^15.0.1",
-    "remark-html": "^16.0.1"
+    "remark-html": "^16.0.1",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.8",

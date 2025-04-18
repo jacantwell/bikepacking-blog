@@ -1,32 +1,24 @@
 'use server';
 
-import { Configuration } from '@/services/strava/configuration';
-import { ActivitiesApi, SummaryActivity } from '@/services/strava/api';
+import { SummaryActivity } from '@/services/strava/api';
+import { StravaClient } from '@/lib/strava-client';
 
-// In a production app, this token would be managed properly with OAuth flow
-// For now, we'll use a static token stored in environment variables
-const STRAVA_ACCESS_TOKEN = process.env.STRAVA_ACCESS_TOKEN;
-
+/**
+ * Gets journey activities from Strava using the refresh token flow
+ * @param startDate The date from which to fetch activities, in ISO format
+ */
 export async function getJourneyActivities(startDate: string = '2023-01-01T00:00:00Z') {
   try {
-    // Check if we have a token
-    if (!STRAVA_ACCESS_TOKEN) {
-      console.error('No Strava access token found');
-      return getMockActivities(startDate);
-    }
-    
-    // Set up the Strava API client
-    const config = new Configuration({
-      accessToken: STRAVA_ACCESS_TOKEN
-    });
-    
-    const activitiesApi = new ActivitiesApi(config);
+    // Create a new Strava client - this will use environment variables
+    const stravaClient = new StravaClient();
     
     // Convert start date to epoch timestamp (required by Strava API)
     const after = Math.floor(new Date(startDate).getTime() / 1000);
     
-    // Fetch activities - handle pagination to get all activities since the start date
-    const activities = await fetchAllActivities(activitiesApi, after);
+    // Fetch all activities after the start date, handling pagination automatically
+    const activities = await stravaClient.getAllActivitiesAfter(after);
+    
+    console.log(`Fetched ${activities.length} activities from Strava API`);
     
     return {
       activities,
@@ -39,39 +31,9 @@ export async function getJourneyActivities(startDate: string = '2023-01-01T00:00
   }
 }
 
-// Helper function to fetch all activities with pagination
-async function fetchAllActivities(
-  api: ActivitiesApi, 
-  after: number, 
-  page = 1, 
-  allActivities: SummaryActivity[] = []
-): Promise<SummaryActivity[]> {
-  try {
-    const perPage = 200; // Maximum allowed by Strava API
-    const response = await api.getLoggedInAthleteActivities(
-      undefined, // before
-      after,
-      page,
-      perPage
-    );
-    
-    const newActivities = response.data || [];
-    const activities = [...allActivities, ...newActivities];
-    
-    // If we got a full page, there might be more to fetch
-    if (newActivities.length === perPage) {
-      return fetchAllActivities(api, after, page + 1, activities);
-    }
-    
-    return activities;
-  } catch (error) {
-    console.error('Error in pagination for Strava activities:', error);
-    // Return what we've got so far
-    return allActivities;
-  }
-}
-
-// Fallback function to get mock data if API fails
+/**
+ * Fallback function to get mock data if API fails
+ */
 function getMockActivities(startDate: string) {
   console.log('Using mock Strava data');
   

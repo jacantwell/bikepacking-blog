@@ -1,28 +1,26 @@
 import Container from "@/app/_components/container";
-import { HeroPost } from "@/app/_components/hero-post";
 import { Intro } from "@/app/_components/intro";
 import { MoreStories } from "@/app/_components/more-stories";
+import { JourneyMap } from "@/app/_components/journey-map";
 import { getAllPosts } from "@/lib/api";
+import { getJourneyActivities } from "@/app/_actions/strava";
 
-export default function Index() {
+export default async function Index() {
   const allPosts = getAllPosts();
-
-  const heroPost = allPosts[0];
-
   const morePosts = allPosts.slice(1);
+  
+  // Set the journey start date - this would be configurable
+  const journeyStartDate = "2023-01-01T00:00:00Z";
+  
+  // Fetch Strava activities (currently mock data)
+  const { activities, startDate } = await getJourneyActivities(journeyStartDate);
 
   return (
     <main>
       <Container>
         <Intro />
-        <HeroPost
-          title={heroPost.title}
-          coverImage={heroPost.coverImage}
-          date={heroPost.date}
-          author={heroPost.author}
-          slug={heroPost.slug}
-          excerpt={heroPost.excerpt}
-        />
+        {/* Replace HeroPost with JourneyMap */}
+        <JourneyMap activities={activities} startDate={startDate} />
         {morePosts.length > 0 && <MoreStories posts={morePosts} />}
       </Container>
     </main>

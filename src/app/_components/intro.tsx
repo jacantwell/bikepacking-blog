@@ -7,7 +7,7 @@ export function Intro() {
         Jasper. UK to ?
       </h1>
       <h4 className="text-center md:text-left text-lg mt-5 md:pl-8">
-        A log of my travels around the world.
+        A blog of my travels around the world.
       </h4>
     </section>
   );

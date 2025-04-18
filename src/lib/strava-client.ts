@@ -130,9 +130,9 @@ export class StravaClient {
         // Filter activities by date
         const filteredActivities = activities.filter(activity => {
           const activityTime = new Date(activity.start_date || '').getTime() / 1000;
-          return activityTime >= after;
+          return activityTime >= after && activity.type === 'Ride';
         });
-
+  
         allActivities = [...allActivities, ...filteredActivities];
         
         // Check if we got fewer activities than requested, which means we reached the end

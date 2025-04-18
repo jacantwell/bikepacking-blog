@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Map, { Source, Layer, NavigationControl, Popup, ViewState, ViewStateChangeEvent, LineLayerSpecification } from 'react-map-gl/mapbox';
+import Map, { Source, Layer, NavigationControl, Marker, Popup, ViewState, ViewStateChangeEvent, LineLayerSpecification } from 'react-map-gl/mapbox';
 import { SummaryActivity } from '@/services/strava/api';
 import { processActivities, calculateBounds } from '@/lib/activity-processor';
 
@@ -49,9 +49,9 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
     pitch: 0,
     padding: { top: 40, bottom: 40, left: 40, right: 40 }
   });
-
-
   
+
+
   const [journeyData, setJourneyData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -60,6 +60,13 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
   const [hoveredActivity, setHoveredActivity] = useState<SummaryActivity | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<SummaryActivity | null>(null);
   const [popupInfo, setPopupInfo] = useState<{
+    longitude: number;
+    latitude: number;
+    activity: SummaryActivity;
+  } | null>(null);
+  
+  // State for current location marker
+  const [currentLocation, setCurrentLocation] = useState<{
     longitude: number;
     latitude: number;
     activity: SummaryActivity;
@@ -110,6 +117,32 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
       latitude: centerLat,
       zoom: zoom,
     }));
+  }, [activities]);
+  
+  // Find most recent activity and set current location
+  const findCurrentLocation = useCallback(() => {
+    if (!activities || activities.length === 0) return;
+    
+    // Sort activities by date, most recent first
+    const sortedActivities = [...activities].sort((a, b) => {
+      const dateA = new Date(a.start_date || '').getTime();
+      const dateB = new Date(b.start_date || '').getTime();
+      return dateB - dateA; // Descending order
+    });
+    
+    const mostRecent = sortedActivities[0];
+    
+    console.log('Most recent activity:', mostRecent);
+    console.log('Endlatlng:', mostRecent.end_latlng);
+    
+    // Try to get the end point if available
+    if (mostRecent.end_latlng && mostRecent.end_latlng.length === 2) {
+      setCurrentLocation({
+        latitude: mostRecent.end_latlng[0],
+        longitude: mostRecent.end_latlng[1],
+        activity: mostRecent
+      });
+    }
   }, [activities]);
   
   // Effect to handle dark mode
@@ -163,18 +196,22 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
         activityTypes
       });
       
+      // Find current location marker
+      findCurrentLocation();
+      
       // Fit map to activity bounds after a short delay
       setTimeout(fitBounds, 500);
     }
     
     setIsLoading(false);
-  }, [activities, startDate, fitBounds]);
+  }, [activities, startDate, fitBounds, findCurrentLocation]);
   
   // Map style based on dark/light mode
   const mapStyle = isDarkMode 
-    ? "mapbox://styles/mapbox/dark-v11" 
-    : "mapbox://styles/mapbox/outdoors-v12";
+  ? "mapbox://styles/mapbox/dark-v11" 
+  : "mapbox://styles/mapbox/outdoors-v12";
   
+  // console.log('Current location:', currentLocation);
   // Layer styles
   const lineLayer: LineLayerSpecification = {
     id: 'journey-lines',
@@ -184,10 +221,7 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
       'line-color': [
         'match',
         ['get', 'type'],
-        'Run', isDarkMode ? '#36a2eb' : '#2185d0',
         'Ride', isDarkMode ? '#ff6b6b' : '#e03131',
-        'Hike', isDarkMode ? '#4bc0c0' : '#21ba45',
-        'Swim', isDarkMode ? '#9966ff' : '#6435c9',
         isDarkMode ? '#ff9f40' : '#f2711c' // default color
       ],
       'line-width': 3,
@@ -241,13 +275,6 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
     }
   }, []);
   
-  // Activity type distribution for display
-  const activityTypesList = useMemo(() => {
-    return Object.entries(stats.activityTypes)
-      .sort((a, b) => b[1] - a[1])
-      .map(([type, count]) => ({ type, count }));
-  }, [stats.activityTypes]);
-  
   // Button handler for fitting bounds
   const handleFitBounds = () => {
     fitBounds();
@@ -276,7 +303,7 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
         <div className="bg-white dark:bg-slate-800 rounded-lg p-3 shadow-sm">
           <h3 className="text-lg font-semibold">Total Elevation</h3>
           <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {formatDistance(stats.totalElevationGain, undefined)}
+          {formatDistance(stats.totalElevationGain, undefined)}
           </p>
         </div>
       </div>
@@ -315,7 +342,19 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
                   </svg>
                 </button>
               </div>
-              
+
+                            
+              Current location marker
+              {currentLocation && (
+                  <Marker
+                    longitude={currentLocation.longitude}
+                    latitude={currentLocation.latitude}
+                    anchor="center"
+                  >
+                    <div className="w-60 h-60 bg-black-500 rounded-full border-2 border-white" />
+                  </Marker>
+                )}
+
               {/* Render journey polylines if data is available */}
               {journeyData && journeyData.features.length > 0 && (
                 <Source id="journey-routes" type="geojson" data={journeyData}>
@@ -323,58 +362,25 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
                 </Source>
               )}
               
-              {/* Show popup for selected activity */}
-              {popupInfo && (
-                <Popup
-                  longitude={popupInfo.longitude}
-                  latitude={popupInfo.latitude}
-                  anchor="bottom"
-                  onClose={() => setPopupInfo(null)}
-                  closeButton={true}
-                  closeOnClick={false}
-                  className="z-10"
-                >
-                  <div className="p-1 min-w-[200px]">
-                    <h3 className="font-bold text-sm">{popupInfo.activity.name}</h3>
-                    <p className="text-xs mt-1">Type: {popupInfo.activity.type}</p>
-                    <p className="text-xs">Distance: {formatDistance(popupInfo.activity.distance, 'km')}</p>
-                    <p className="text-xs">Date: {formatDate(popupInfo.activity.start_date)}</p>
-                    {popupInfo.activity.elapsed_time && (
-                      <p className="text-xs">Time: {formatTime(popupInfo.activity.elapsed_time)}</p>
-                    )}
-                  </div>
-                </Popup>
-              )}
             </Map>
           </>
         )}
       </div>
       
       {/* Map legend */}
-      <div className="mt-4 bg-white dark:bg-slate-800 p-3 rounded-lg flex flex-wrap gap-3 text-sm">
-        <div className="font-semibold">Activity Types:</div>
-        <div className="flex gap-3 flex-wrap">
-          <span className="flex items-center">
-            <span className="inline-block w-3 h-3 rounded-full bg-red-500 mr-1"></span> Ride
-          </span>
-          <span className="flex items-center">
-            <span className="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span> Run
-          </span>
-        </div>
-      </div>
-      
-      {/* Activity types breakdown */}
-      {/* <div className="mt-6">
-        <h3 className="text-xl font-semibold mb-2">Activity Breakdown</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-          {activityTypesList.map(({ type, count }) => (
-            <div key={type} className="bg-white dark:bg-slate-800 rounded p-2 text-sm flex justify-between">
-              <span className="font-medium">{type}</span>
-              <span className="font-bold">{count}</span>
+        {/* {currentLocation && (
+          <div className="ml-auto flex items-center">
+            <div className={`inline-flex items-center justify-center w-6 h-6 p-1 rounded-full ${isDarkMode ? 'bg-slate-800' : 'bg-white'} border-2 border-red-500 text-red-500 mr-1`}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="5.5" cy="17.5" r="3.5" />
+              <circle cx="18.5" cy="17.5" r="3.5" />
+              <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2" />
+            </svg>
             </div>
-          ))}
-        </div>
-      </div> */}
+            <span>Current location</span>
+          </div>
+        )} */}
+      
       
       {/* Selected activity details */}
       {selectedActivity && (
@@ -404,6 +410,13 @@ export function JourneyMap({ activities, startDate }: JourneyMapProps) {
             <div className="mt-3">
               <p className="text-sm text-gray-600 dark:text-gray-400">Elevation Gain</p>
               <p>{selectedActivity.total_elevation_gain} m</p>
+            </div>
+          )}
+          
+          {/* Is this the current location? */}
+          {currentLocation && currentLocation.activity.id === selectedActivity.id && (
+            <div className="mt-3 inline-block px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded-full text-sm">
+              Current Location
             </div>
           )}
           

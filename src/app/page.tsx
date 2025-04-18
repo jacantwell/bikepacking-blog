@@ -10,7 +10,7 @@ export default async function Index() {
   const morePosts = allPosts.slice(1);
   
   // Set the journey start date - this would be configurable
-  const journeyStartDate = "2023-01-01T00:00:00Z";
+  const journeyStartDate = process.env.JOURNEY_START_DATE || '2025-03-01T00:00:00Z';
   
   // Fetch Strava activities (currently mock data)
   const { activities, startDate } = await getJourneyActivities(journeyStartDate);

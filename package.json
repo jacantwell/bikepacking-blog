@@ -8,13 +8,17 @@
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^11.0.20",
+    "@types/mapbox-gl": "^3.4.1",
     "axios": "^1.8.4",
     "classnames": "^2.5.1",
     "date-fns": "^3.6.0",
     "gray-matter": "^4.0.3",
-    "next": "15.0.2",
+    "mapbox-gl": "^3.11.0",
+    "next": "^15.3.1",
+    "polyline": "^0.2.0",
     "react": "19.0.0-rc-02c0e824-20241028",
     "react-dom": "19.0.0-rc-02c0e824-20241028",
+    "react-map-gl": "^8.0.4",
     "remark": "^15.0.1",
     "remark-html": "^16.0.1",
     "rxjs": "^7.8.2"
